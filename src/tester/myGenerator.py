@@ -58,24 +58,62 @@ def prepareMutInput(projPath: Path, projName: str):
 def generatePatches(projPath: Path, projName: str):
     for mutId in getMutIds(projPath):
         print('****** Patching {} Mutant-{} ******'.format(projName, mutId))
-        mutDataDir = TESTER_DIR_PATH / (projName + '-mutants') / mutId
-        mutDataDir.resolve()
-        vocab_file = TESTER_DIR + '../../data/vocabulary/vocabulary.txt'
-        input_file = str(mutDataDir / 'input.txt')
-        identifier_txt_file = str(mutDataDir / 'identifier.txt')
-        identifier_token_file = str(mutDataDir / 'identifier.tokens')
-        assert mutDataDir.exists() and os.path.exists(vocab_file) and os.path.exists(input_file) and os.path.exists(identifier_txt_file) and os.path.exists(identifier_token_file)
+        try:
+            mutDataDir = TESTER_DIR_PATH / (projName + '-mutants') / mutId
+            mutDataDir.resolve()
+            vocab_file = TESTER_DIR + '../../data/vocabulary/vocabulary.txt'
+            input_file = str(mutDataDir / 'input.txt')
+            identifier_txt_file = str(mutDataDir / 'identifier.txt')
+            identifier_token_file = str(mutDataDir / 'identifier.tokens')
+            assert mutDataDir.exists() and os.path.exists(vocab_file) and os.path.exists(input_file) and os.path.exists(identifier_txt_file) and os.path.exists(identifier_token_file)
 
-        beam_size = 50
-        os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+            beam_size = 50
+            os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
-        model_file = TESTER_DIR + '../../data/models/gpt_conut_1.pt'
-        output_file = str(mutDataDir / 'gpt_conut_1.txt')
-        generate_gpt_conut(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
+            model_file = TESTER_DIR + '../../data/models/gpt_conut_1.pt'
+            output_file = str(mutDataDir / 'gpt_conut_1.txt')
+            if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
+                generate_gpt_conut(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
 
-        model_file = TESTER_DIR + '../../data/models/gpt_fconv_1.pt'
-        output_file = str(mutDataDir / 'gpt_fconv_1.txt')
-        generate_gpt_fconv(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
+            model_file = TESTER_DIR + '../../data/models/gpt_fconv_1.pt'
+            output_file = str(mutDataDir / 'gpt_fconv_1.txt')
+            if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
+                generate_gpt_fconv(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
+        except:
+            import traceback
+            traceback.print_exc()
+            print('[ERROR] Failed to generate patch for {} mutant-{}'.format(projName, mutId))
+
+def combineOutputs(projPath: Path, projName: str):
+    outputFile1 = TESTER_DIR_PATH / (projName + '-mutants') / 'gpt_conut_1.txt'
+    outputFile2 = TESTER_DIR_PATH / (projName + '-mutants') / 'gpt_fconv_1.txt'
+    outputFile1.unlink(missing_ok=True)
+    outputFile2.unlink(missing_ok=True)
+    cnt = 0
+
+    with outputFile1.open(mode='a') as o1:
+        with outputFile2.open(mode='a') as o2:
+            for mutId in getMutIds(projPath):
+                print('****** Combining {} Mutant-{} ******'.format(projName, mutId))
+                mutDataDir = TESTER_DIR_PATH / (projName + '-mutants') / mutId
+                mutDataDir.resolve()
+
+                file1 = mutDataDir / 'gpt_conut_1.txt'
+                file2 = mutDataDir / 'gpt_fconv_1.txt'
+
+                if not file1.exists() or not file2.exists() or file1.stat().st_size == 0 or file2.stat().st_size == 0:
+                    print("Skipping Mutant-{}".format(mutId))
+                    continue
+
+                with file1.open() as f1:
+                    for line in f1:
+                        line = re.sub('(\w)-0', r'\1-' + str(cnt), line, count=1)
+                        o1.write(line)
+                with file2.open() as f2:
+                    for line in f2:
+                        line = re.sub('(\w)-0', r'\1-' + str(cnt), line, count=1)
+                        o2.write(line)
+                cnt += 1
 
 def err(msg: str):
     print(msg)
@@ -86,5 +124,6 @@ if __name__ == "__main__":
     # print(getMutLineNum(path, '44'))
     # print(getMutSourcePath(path, '44'))
     # prepareMutInput(path, 'Chart-1f')
-    generatePatches(path, 'Chart-1f')
+    # generatePatches(path, 'Chart-1f')
+    combineOutputs(path, 'Chart-1f')
     
