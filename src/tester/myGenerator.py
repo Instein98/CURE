@@ -41,7 +41,7 @@ def getMutSourcePath(projPath: Path, mutId: str):
 def prepareMutInput(projPath: Path, projName: str):
     for mutId in getMutIds(projPath):
         print('****** Preparing {} Mutant-{} ******'.format(projName, mutId))
-        mutDataDir = TESTER_DIR_PATH / (projName + '-mutants') / mutId
+        mutDataDir = TESTER_DIR_PATH / (projName + '-mutants')
         mutDataDir.mkdir(parents=True, exist_ok=True)
         mutDataDir.resolve()
         buggyLineNum = getMutLineNum(projPath, mutId)
@@ -56,26 +56,24 @@ def prepareMutInput(projPath: Path, projName: str):
         )
 
 def generatePatches(projPath: Path, projName: str):
-    for mutId in getMutIds(projPath):
-        print('****** Patching {} Mutant-{} ******'.format(projName, mutId))
-        mutDataDir = TESTER_DIR_PATH / (projName + '-mutants') / mutId
-        mutDataDir.resolve()
-        vocab_file = TESTER_DIR + '../../data/vocabulary/vocabulary.txt'
-        input_file = str(mutDataDir / 'input.txt')
-        identifier_txt_file = str(mutDataDir / 'identifier.txt')
-        identifier_token_file = str(mutDataDir / 'identifier.tokens')
-        assert mutDataDir.exists() and os.path.exists(vocab_file) and os.path.exists(input_file) and os.path.exists(identifier_txt_file) and os.path.exists(identifier_token_file)
+    mutDataDir = TESTER_DIR_PATH / (projName + '-mutants')
+    mutDataDir.resolve()
+    vocab_file = TESTER_DIR + '../../data/vocabulary/vocabulary.txt'
+    input_file = str(mutDataDir / 'input.txt')
+    identifier_txt_file = str(mutDataDir / 'identifier.txt')
+    identifier_token_file = str(mutDataDir / 'identifier.tokens')
+    assert mutDataDir.exists() and os.path.exists(vocab_file) and os.path.exists(input_file) and os.path.exists(identifier_txt_file) and os.path.exists(identifier_token_file)
 
-        beam_size = 50
-        os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+    beam_size = 100
+    os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
-        model_file = TESTER_DIR + '../../data/models/gpt_conut_1.pt'
-        output_file = str(mutDataDir / 'gpt_conut_1.txt')
-        generate_gpt_conut(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
+    model_file = TESTER_DIR + '../../data/models/gpt_conut_1.pt'
+    output_file = str(mutDataDir / 'gpt_conut_1.txt')
+    generate_gpt_conut(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
 
-        model_file = TESTER_DIR + '../../data/models/gpt_fconv_1.pt'
-        output_file = str(mutDataDir / 'gpt_fconv_1.txt')
-        generate_gpt_fconv(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
+    model_file = TESTER_DIR + '../../data/models/gpt_fconv_1.pt'
+    output_file = str(mutDataDir / 'gpt_fconv_1.txt')
+    generate_gpt_fconv(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
 
 def err(msg: str):
     print(msg)
