@@ -11,7 +11,7 @@ def read_defects4j_meta(meta_path):
     for l in fp.readlines():
         proj, bug_id, path, start_loc, end_loc = l.strip().split('\t')
         meta.append([
-            proj, bug_id, path, start_loc, end_loc + 1
+            proj, bug_id, path, start_loc, str(int(end_loc) + 1)
         ])
     return meta
 
