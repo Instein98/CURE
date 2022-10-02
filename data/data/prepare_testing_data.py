@@ -105,12 +105,16 @@ def write_identifiers(java_class_path, java_keyword_path, result_path, identifie
 
 
 def prepare_cure_input(buggy_file, start_line, end_line, java_class_path, java_keyword_path, tmp_dir, output_dir):
-    call_java_parser(buggy_file, start_line, end_line, tmp_dir + '/tmp.json')
-    write_buggy_ctx(tmp_dir + '/tmp.json', output_dir + '/input.txt')
+    timestamp = str(time.time())
+    tmpJson = "{}/tmp-{}.json".format(tmp_dir, timestamp)
+    call_java_parser(buggy_file, start_line, end_line, tmpJson)
+    write_buggy_ctx(tmpJson, output_dir + '/input.txt')
     write_identifiers(
-        java_class_path, java_keyword_path, tmp_dir + '/tmp.json', 
+        java_class_path, java_keyword_path, tmpJson, 
         output_dir + '/identifier.txt', output_dir + '/identifier.tokens'
     )
+    if os.path.exists(tmpJson):
+        os.remove(tmpJson)
 
 
 def clean_testing_bpe(input_bpe_file, identifier_bpe_file):

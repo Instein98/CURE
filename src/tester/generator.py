@@ -30,28 +30,33 @@ class Generator():
         self.data_loader.load_data(0, self.data_loader.total_size)
         for i in range(self.data_loader.total_size):
             print(i, '/', self.data_loader.total_size)
-            data = self.data_loader.dataset[i]
-            if True:
-                self.beamsearch.beam_size = self.beam_size
-                sample = self.data_loader.dataset.collater([data])
-                with torch.no_grad():
-                    if isinstance(self.model, GPTCoNuTModel):
-                        hypothesis = self.beamsearch.generate_gpt_conut(sample)
-                    elif isinstance(self.model, GPTFConvModel):
-                        hypothesis = self.beamsearch.generate_gpt_fconv(sample)
-            # except Exception as e:
-            #    print(e)
-            #    continue
-            id = str(sample['id'].item())
-            wp.write('S-{}\t'.format(id))
-            wp.write(self.dictionary.string(data['source']) + '\n')
-            wp.write('T-{}\t'.format(id))
-            wp.write(self.dictionary.string(data['target']) + '\n')
-            for h in hypothesis:
-                wp.write('H-{}\t{}\t'.format(id, str(h['final_score'])))
-                wp.write(self.dictionary.string(h['hypo']) + '\n')
-                wp.write('P-{}\t'.format(id))
-                wp.write(' '.join(str(round(s.item(), 4)) for s in h['score']) + '\n')
+            try:
+                data = self.data_loader.dataset[i]
+                if True:
+                    self.beamsearch.beam_size = self.beam_size
+                    sample = self.data_loader.dataset.collater([data])
+                    with torch.no_grad():
+                        if isinstance(self.model, GPTCoNuTModel):
+                            hypothesis = self.beamsearch.generate_gpt_conut(sample)
+                        elif isinstance(self.model, GPTFConvModel):
+                            hypothesis = self.beamsearch.generate_gpt_fconv(sample)
+                # except Exception as e:
+                #    print(e)
+                #    continue
+                id = str(sample['id'].item())
+                wp.write('S-{}\t'.format(id))
+                wp.write(self.dictionary.string(data['source']) + '\n')
+                wp.write('T-{}\t'.format(id))
+                wp.write(self.dictionary.string(data['target']) + '\n')
+                for h in hypothesis:
+                    wp.write('H-{}\t{}\t'.format(id, str(h['final_score'])))
+                    wp.write(self.dictionary.string(h['hypo']) + '\n')
+                    wp.write('P-{}\t'.format(id))
+                    wp.write(' '.join(str(round(s.item(), 4)) for s in h['score']) + '\n')
+            except:
+                import traceback
+                traceback.print_exc()
+                print('[ERROR] {}/{} FAIL!'.format(i, self.data_loader.total_size))
         wp.close()
 
 
@@ -122,17 +127,21 @@ def generate_gpt_fconv(vocab_file, model_file, input_file, identifier_txt_file, 
 
 
 if __name__ == "__main__":
+    # vocab_file = GENERATOR_DIR + '../../data/vocabulary/vocabulary.txt'
+    # input_file = GENERATOR_DIR + '../../candidate_patches/QuixBugs/quixbugs_bpe.txt'
+    # identifier_txt_file = GENERATOR_DIR + '../../candidate_patches/QuixBugs/identifier.txt'
+    # identifier_token_file = GENERATOR_DIR + '../../candidate_patches/QuixBugs/identifier.tokens'
     vocab_file = GENERATOR_DIR + '../../data/vocabulary/vocabulary.txt'
-    input_file = GENERATOR_DIR + '../../candidate_patches/QuixBugs/quixbugs_bpe.txt'
-    identifier_txt_file = GENERATOR_DIR + '../../candidate_patches/QuixBugs/identifier.txt'
-    identifier_token_file = GENERATOR_DIR + '../../candidate_patches/QuixBugs/identifier.tokens'
+    input_file = '/home/yicheng/check-apr/CURE/data/data/input_bpe.txt'
+    identifier_txt_file = '/home/yicheng/check-apr/CURE/data/data/identifier.txt'
+    identifier_token_file = '/home/yicheng/check-apr/CURE/data/data/identifier_bpe.tokens'
     beam_size = 1000
     os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
     model_file = GENERATOR_DIR + '../../data/models/gpt_conut_1.pt'
-    output_file = GENERATOR_DIR + '../../data/patches/gpt_conut_1.txt'
+    output_file = GENERATOR_DIR + '../../data/patches/gpt_conut_1-test-0.txt'
     generate_gpt_conut(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
 
     model_file = GENERATOR_DIR + '../../data/models/gpt_fconv_1.pt'
-    output_file = GENERATOR_DIR + '../../data/patches/gpt_fconv_1.txt'
+    output_file = GENERATOR_DIR + '../../data/patches/gpt_fconv_1-test-0.txt'
     generate_gpt_fconv(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
