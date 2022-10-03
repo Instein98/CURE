@@ -6,9 +6,13 @@ import shutil
 import subprocess as sp
 from pathlib import Path
 
+save_stdout = sys.stdout
+save_stderr = sys.stderr
 TESTER_DIR = os.path.abspath(__file__)[: os.path.abspath(__file__).rindex('/') + 1]
 DATA_DIR = TESTER_DIR + '../../data/data/'
 TESTER_DIR_PATH = Path(TESTER_DIR)
+mutResultDirPath = TESTER_DIR_PATH / 'mutResults'
+mutResultDirPath.mkdir(exist_ok=True)
 sys.path.append(TESTER_DIR + '../../data/data/')
 sys.path.append(TESTER_DIR + '../validation/')
 sys.path.append(TESTER_DIR + '../dataloader/')
@@ -83,7 +87,7 @@ def getMutReplaceRelativePath(projPath: Path, mutId: str, projSrcRelativePath=No
 def prepareMutInput(projPath: Path, projName: str):
     for mutId in getMutIds(projPath):
         print('****** Preparing {} Mutant-{} ******'.format(projName, mutId))
-        mutDataDir = TESTER_DIR_PATH / (projName + '-mutants') / mutId
+        mutDataDir = mutResultDirPath / (projName + '-mutants') / mutId
         if fileExistsAndNotEmpty(mutDataDir / 'input.txt'):
             continue
         mutDataDir.mkdir(parents=True, exist_ok=True)
@@ -112,12 +116,13 @@ def prepareMutInput(projPath: Path, projName: str):
 def fileExistsAndNotEmpty(p: Path):
     return p.exists() and p.stat().st_size > 0
 
-def prepareMutInputAllIn(projPath: Path, projName: str):
-    mutDataDir = TESTER_DIR_PATH / (projName + '-mutants-allin')
+def prepareMutInputAllIn(projPath: Path, projName: str, mutIds=None):
+    mutDataDir = mutResultDirPath / (projName + '-mutants-allin')
     (mutDataDir / 'identifier.tokens').unlink(missing_ok=True)
     (mutDataDir / 'identifier.txt').unlink(missing_ok=True)
     (mutDataDir / 'input.txt').unlink(missing_ok=True)
-    for mutId in getMutIds(projPath):
+    mutIds = mutIds if mutIds is not None else getMutIds(projPath)
+    for mutId in mutIds:
         print('****** Preparing {} Mutant-{} ******'.format(projName, mutId))
         
         mutDataDir.mkdir(parents=True, exist_ok=True)
@@ -143,10 +148,21 @@ def prepareMutInputAllIn(projPath: Path, projName: str):
         str(mutDataDir / 'identifier_bpe.tokens')
     )
 
+def redirectOutErrToLogsAllin(projName: str):
+    tmp = mutResultDirPath / (projName + '-mutants-allin')
+    tmp.mkdir(exist_ok=True)
+    log = tmp / "output.log"
+    sys.stdout = log.open(mode='w')
+    sys.stderr = sys.stdout
+
+def recoverOutErr():
+    sys.stdout = save_stdout
+    sys.stderr = save_stderr
+
 def generatePatchesAllIn(projName: str):
     print('****** Patching {} ******'.format(projName))
 
-    mutDataDir = TESTER_DIR_PATH / (projName + '-mutants-allin')
+    mutDataDir = mutResultDirPath / (projName + '-mutants-allin')
     mutDataDir.resolve()
     vocab_file = TESTER_DIR + '../../data/vocabulary/vocabulary.txt'
     input_file = str(mutDataDir / 'input_bpe.txt')
@@ -178,7 +194,7 @@ def generatePatches(projPath: Path, projName: str):
     for mutId in getMutIds(projPath):
         print('****** Patching {} Mutant-{} ******'.format(projName, mutId))
         try:
-            mutDataDir = TESTER_DIR_PATH / (projName + '-mutants') / mutId
+            mutDataDir = mutResultDirPath / (projName + '-mutants') / mutId
             mutDataDir.resolve()
             vocab_file = TESTER_DIR + '../../data/vocabulary/vocabulary.txt'
             input_file = str(mutDataDir / 'input_bpe.txt')
@@ -204,8 +220,8 @@ def generatePatches(projPath: Path, projName: str):
             print('[ERROR] Failed to generate patch for {} mutant-{}'.format(projName, mutId))
 
 def combineOutputs(projPath: Path, projName: str):
-    outputFile1 = TESTER_DIR_PATH / (projName + '-mutants') / 'gpt_conut_1.txt'
-    outputFile2 = TESTER_DIR_PATH / (projName + '-mutants') / 'gpt_fconv_1.txt'
+    outputFile1 = mutResultDirPath / (projName + '-mutants') / 'gpt_conut_1.txt'
+    outputFile2 = mutResultDirPath / (projName + '-mutants') / 'gpt_fconv_1.txt'
     outputFile1.unlink(missing_ok=True)
     outputFile2.unlink(missing_ok=True)
     cnt = 0
@@ -214,7 +230,7 @@ def combineOutputs(projPath: Path, projName: str):
         with outputFile2.open(mode='a') as o2:
             for mutId in getMutIds(projPath):
                 print('****** Combining {} Mutant-{} ******'.format(projName, mutId))
-                mutDataDir = TESTER_DIR_PATH / (projName + '-mutants') / mutId
+                mutDataDir = mutResultDirPath / (projName + '-mutants') / mutId
                 mutDataDir.resolve()
 
                 file1 = mutDataDir / 'gpt_conut_1.txt'
@@ -234,25 +250,26 @@ def combineOutputs(projPath: Path, projName: str):
                         o2.write(line)
                 cnt += 1
 
-def generateMeta(projPath: Path, projName: str, allin=True):
+def generateMeta(projPath: Path, projName: str, allin=True, mutIds=None):
     projSrcRelativePath = sp.check_output("defects4j export -p dir.src.classes", shell=True, text=True, cwd=str(projPath)).strip()
-    file = TESTER_DIR_PATH / (projName + '-mutants') / 'meta.txt'
+    file = mutResultDirPath / (projName + '-mutants') / 'meta.txt'
     if allin:
-        file = TESTER_DIR_PATH / (projName + '-mutants-allin') / 'meta.txt'
+        file = mutResultDirPath / (projName + '-mutants-allin') / 'meta.txt'
     with file.open('a') as f:
-        for mutId in getMutIds(projPath):
+        mutIds = mutIds if mutIds is not None else getMutIds(projPath)
+        for mutId in mutIds:
             lineNum = getMutLineNum(projPath, mutId)
             res = 'Mutant\t{}\t{}\t{}\t{}\n'.format(mutId, getMutReplaceRelativePath(projPath, mutId, projSrcRelativePath=projSrcRelativePath), lineNum, lineNum)
             f.write(res)
 
 def rerank(projPath: Path, projName: str, allin=True):
-    mutDataDir = TESTER_DIR_PATH / (projName + '-mutants')
+    mutDataDir = mutResultDirPath / (projName + '-mutants')
     if allin:
-        mutDataDir = TESTER_DIR_PATH / (projName + '-mutants-allin')
+        mutDataDir = mutResultDirPath / (projName + '-mutants-allin')
     mutDataDir.resolve()
-    metaFile = TESTER_DIR_PATH / (projName + '-mutants') / 'meta.txt'
+    metaFile = mutResultDirPath / (projName + '-mutants') / 'meta.txt'
     if allin:
-        metaFile = TESTER_DIR_PATH / (projName + '-mutants-allin') / 'meta.txt'
+        metaFile = mutResultDirPath / (projName + '-mutants-allin') / 'meta.txt'
     metaFile.resolve()
     if not metaFile.exists():
         generateMeta(projPath, projName)
@@ -264,7 +281,7 @@ def rerank(projPath: Path, projName: str, allin=True):
 def compilePatches(projPath: Path, projName: str):
     tmp_dir = str(projPath) + '/'
     projClassDirPath = sp.check_output("defects4j export -p dir.bin.classes", shell=True, text=True, cwd=str(projPath)).strip()
-    mutDataDir = TESTER_DIR_PATH / (projName + '-mutants')
+    mutDataDir = mutResultDirPath / (projName + '-mutants')
     mutDataDir.resolve()
     reranked_result_path = str(mutDataDir / 'reranked_patches.json')
 
