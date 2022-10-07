@@ -56,9 +56,10 @@ def getMutIds(projPath: Path):
     #                 res.remove(id)
     return res
 
-def getMutFixedLine(projPath: Path, mutId: str):
+def getMutFixedLine(projPath: Path, mutId: str, projSrcPath=None):
     mutLog = projPath / 'mutants.log'
-    projSrcRelativePath = sp.check_output("defects4j export -p dir.src.classes", shell=True, text=True, cwd=str(projPath)).strip()
+    projSrcRelativePath = sp.check_output("defects4j export -p dir.src.classes", shell=True, universal_newlines=True, cwd=str(projPath)).strip() if projSrcPath is None else projSrcPath
+    shortPath = sp.check_output('find . -name "*.java"', shell=True, universal_newlines=True, cwd=str(projPath / 'mutants' / mutId)).strip()
     assert mutLog.exists()
     with mutLog.open() as log:
         for line in log:
@@ -67,9 +68,8 @@ def getMutFixedLine(projPath: Path, mutId: str):
                 if (m is None):
                     print("Mutant-{} has no match for '.+:(.*?)@.*:(\d+):.+\n' in line {}".format(mutId, line))
                 assert m is not None
-                fqn = m[1]
-                lineNum = int(m[1])
-                javaFilePath = projPath / (projSrcRelativePath + '/' + fqn.replace('.', '/') + '.java')
+                lineNum = int(m[2])
+                javaFilePath = projPath / (projSrcRelativePath + '/' + shortPath)
                 with javaFilePath.open() as f:
                     cnt = 1
                     for line in f:
