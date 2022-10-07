@@ -56,13 +56,36 @@ def getMutIds(projPath: Path):
     #                 res.remove(id)
     return res
 
+def getMutFixedLine(projPath: Path, mutId: str):
+    mutLog = projPath / 'mutants.log'
+    projSrcRelativePath = sp.check_output("defects4j export -p dir.src.classes", shell=True, text=True, cwd=str(projPath)).strip()
+    assert mutLog.exists()
+    with mutLog.open() as log:
+        for line in log:
+            if line.startswith(mutId + ':'):
+                m = re.match(r'.+:(.*?)@.*:(\d+):.+\n', line)
+                if (m is None):
+                    print("Mutant-{} has no match for '.+:(.*?)@.*:(\d+):.+\n' in line {}".format(mutId, line))
+                assert m is not None
+                fqn = m[1]
+                lineNum = int(m[1])
+                javaFilePath = projPath / (projSrcRelativePath + '/' + fqn.replace('.', '/') + '.java')
+                with javaFilePath.open() as f:
+                    cnt = 1
+                    for line in f:
+                        if cnt == lineNum:
+                            return line
+                        cnt += 1
+
 def getMutLineNum(projPath: Path, mutId: str):
     mutLog = projPath / 'mutants.log'
     assert mutLog.exists()
     with mutLog.open() as log:
         for line in log:
             if line.startswith(mutId + ':'):
-                m = re.match(r'.+:(\d+):[^:]+\n', line)
+                m = re.match(r'.+:(\d+):.+\n', line)
+                if (m is None):
+                    print("Mutant-{} has no match for '.+:(\d+):[^:]+' in line {}".format(mutId, line))
                 assert m is not None
                 return int(m[1])
 
@@ -118,6 +141,8 @@ def fileExistsAndNotEmpty(p: Path):
 
 def prepareMutInputAllIn(projPath: Path, projName: str, mutIds=None):
     mutDataDir = mutResultDirPath / (projName + '-mutants-allin')
+    if (mutDataDir / 'identifier_bpe.tokens').exists():
+        return
     (mutDataDir / 'identifier.tokens').unlink(missing_ok=True)
     (mutDataDir / 'identifier.txt').unlink(missing_ok=True)
     (mutDataDir / 'input.txt').unlink(missing_ok=True)
@@ -174,8 +199,9 @@ def generatePatchesAllIn(projName: str):
     try:
         model_file = TESTER_DIR + '../../data/models/gpt_conut_1.pt'
         output_file = str(mutDataDir / 'gpt_conut_1.txt')
-        if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
-            generate_gpt_conut(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+        generate_gpt_conut(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
     except:
         import traceback
         traceback.print_exc()
@@ -183,8 +209,9 @@ def generatePatchesAllIn(projName: str):
     try:
         model_file = TESTER_DIR + '../../data/models/gpt_fconv_1.pt'
         output_file = str(mutDataDir / 'gpt_fconv_1.txt')
-        if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
-            generate_gpt_fconv(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+        generate_gpt_fconv(vocab_file, model_file, input_file, identifier_txt_file, identifier_token_file, output_file, beam_size)
     except:
         import traceback
         traceback.print_exc()

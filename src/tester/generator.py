@@ -29,6 +29,9 @@ class Generator():
         wp = codecs.open(output_path, 'w', 'utf-8')
         self.data_loader.load_data(0, self.data_loader.total_size)
         for i in range(self.data_loader.total_size):
+            # it will crash the gpu
+            if i == 7 and "jacksonxml-1f-mutants-allin" in output_path:
+                continue
             print(i, '/', self.data_loader.total_size)
             try:
                 data = self.data_loader.dataset[i]
