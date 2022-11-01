@@ -58,7 +58,7 @@ def getMutIds(projPath: Path):
 
 def getMutFixedLine(projPath: Path, mutId: str, projSrcPath=None):
     mutLog = projPath / 'mutants.log'
-    projSrcRelativePath = sp.check_output("defects4j export -p dir.src.classes", shell=True, universal_newlines=True, cwd=str(projPath)).strip() if projSrcPath is None else projSrcPath
+    projSrcRelativePath = sp.check_output("defects4j export -p dir.src.classes", shell=True, universal_newlines=True, cwd=str(projPath), stderr=sp.DEVNULL).strip() if projSrcPath is None else projSrcPath
     shortPath = sp.check_output('find . -name "*.java"', shell=True, universal_newlines=True, cwd=str(projPath / 'mutants' / mutId)).strip()
     assert mutLog.exists()
     with mutLog.open() as log:
@@ -150,6 +150,9 @@ def prepareMutInputAllIn(projPath: Path, projName: str, mutIds=None):
     for mutId in mutIds:
         print('****** Preparing {} Mutant-{} ******'.format(projName, mutId))
         
+        if projName == 'math-1f' and (mutId == '12183' or mutId == '12181'):
+            print('[INFO] Skipping {} mutant-{}'.format(projName, mutId))
+            continue
         mutDataDir.mkdir(parents=True, exist_ok=True)
         mutDataDir.resolve()
         buggyLineNum = getMutLineNum(projPath, mutId)
@@ -195,7 +198,7 @@ def generatePatchesAllIn(projName: str):
     identifier_token_file = str(mutDataDir / 'identifier_bpe.tokens')
     assert mutDataDir.exists() and os.path.exists(vocab_file) and os.path.exists(input_file) and os.path.exists(identifier_txt_file) and os.path.exists(identifier_token_file)
 
-    beam_size = 1000
+    beam_size = 100
     try:
         model_file = TESTER_DIR + '../../data/models/gpt_conut_1.pt'
         output_file = str(mutDataDir / 'gpt_conut_1.txt')
@@ -229,7 +232,7 @@ def generatePatches(projPath: Path, projName: str):
             identifier_token_file = str(mutDataDir / 'identifier_bpe.tokens')
             assert mutDataDir.exists() and os.path.exists(vocab_file) and os.path.exists(input_file) and os.path.exists(identifier_txt_file) and os.path.exists(identifier_token_file)
 
-            beam_size = 1000
+            beam_size = 100
             os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
             model_file = TESTER_DIR + '../../data/models/gpt_conut_1.pt'
