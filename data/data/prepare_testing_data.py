@@ -38,7 +38,7 @@ def compile_java_parser():
 def call_java_parser(file_path, start_line, end_line, output_file):
     os.chdir(IDENTIFIER_DATA_DIR + '../../parser/')
     command_with_timeout([
-        'java', '-cp', '.:target:lib/*', 'jiang719.CUREInput',
+        'java', '-cp', '.:target/classes:lib/*', 'jiang719.CUREInput',
         file_path, output_file, str(start_line), str(end_line)
     ])
 

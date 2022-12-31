@@ -169,7 +169,7 @@ public class IdentifierParser extends Parser {
 		}
 		else {
 			System.out.println("Invalid father node for ClassOrInterfaceDeclaration:" + 
-							father.getClass());
+							father.node.getClass());
 			assert(false);
 		}
 		
